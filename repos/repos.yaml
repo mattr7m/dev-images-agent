@@ -1,0 +1,19 @@
+# Repositories this agent operates on, plus its agent-guidance dependencies.
+# Pattern: repos -> <category> -> <owner> -> [ {repo, description, ...} ]
+# `repos/sync-repos.sh` clones each `core` repo read-only into repos/<owner>/<name>.
+repos:
+
+  core:
+    mattr7m:
+      - repo: mattr7m/dev-images
+        description: Public dev-images Containerfiles (udi-tools base + derivatives; future devbox)
+        visibility: public
+      - repo: mattr7m/dev-images-private
+        description: Private downstream mirror with env-specific image configs (currently empty)
+        visibility: private
+
+  deps:
+    mattr7m:
+      - repo: mattr7m/common-agent
+        description: Shared agent guidance (repo-rules, image-maintainer, image-developer, ...)
+        visibility: public
