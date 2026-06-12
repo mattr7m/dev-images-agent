@@ -25,10 +25,13 @@ dev-images-agent/
 ├── repos/
 │   ├── repos.yaml        # repos this agent operates on + agent deps
 │   └── sync-repos.sh     # shallow, read-only clones into repos/<owner>/<name>
-└── guidance/
-    ├── overview.md                       # the repo's shape, image set, current CI state
-    ├── image-developer-dev-images.md     # inherits image-developer; tags [image-developer]
-    └── image-maintainer-dev-images.md    # inherits image-maintainer; tags [image-maintainer]
+├── guidance/
+│   ├── overview.md                       # the repo's shape, image set, current CI state
+│   ├── image-developer-dev-images.md     # inherits image-developer; tags [image-developer]
+│   └── image-maintainer-dev-images.md    # inherits image-maintainer; tags [image-maintainer]
+└── tasks/                                # work specs per common-agent's task-model block
+    ├── devbox.md                         # owner: dev-images-2-qwen-local-1
+    └── devbox-claude.md                  # owner: dev-images-2-qwen-local-1; depends on devbox
 ```
 
 ## Repos this agent operates on
@@ -65,6 +68,17 @@ common-agent: repo-rules
 
 `guidance/overview.md` is reference context (image set, build commands, CI state) shared by both
 personas — not part of either inheritance chain.
+
+## Tasks
+
+`tasks/*.md` are work specs following `common-agent/guidance/task-model.md`: each declares a
+desired state the `owner` Agent CR reconciles toward, with an append-only status log. Active
+tasks are pinned in the owning CR's `config.instructions`; spec changes land here as PRs.
+
+| Task | Owner | Status |
+|------|-------|--------|
+| `tasks/devbox.md` | `dev-images-2-qwen-local-1` | active |
+| `tasks/devbox-claude.md` | `dev-images-2-qwen-local-1` | active (depends on devbox) |
 
 ## Out of scope
 
