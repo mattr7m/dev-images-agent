@@ -1,7 +1,7 @@
 ---
 name: devbox
 kind: Task
-owner: dev-images-2-qwen-local-1
+owner: dev-images-image-developer-1-qwen-local-1
 status: active
 ---
 

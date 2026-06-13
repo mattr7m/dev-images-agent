@@ -30,8 +30,10 @@ dev-images-agent/
 │   ├── image-developer-dev-images.md     # inherits image-developer; tags [image-developer]
 │   └── image-maintainer-dev-images.md    # inherits image-maintainer; tags [image-maintainer]
 └── tasks/                                # work specs per common-agent's task-model block
-    ├── devbox.md                         # owner: dev-images-2-qwen-local-1
-    └── devbox-claude.md                  # owner: dev-images-2-qwen-local-1; depends on devbox
+    ├── devbox.md                         # owner: image-developer-1
+    ├── devbox-claude.md                  # owner: image-developer-1; depends on devbox
+    ├── image-candidate-channel.md        # owner: image-maintainer-1; daily, interim until CI
+    └── image-weekly-release.md           # owner: image-maintainer-2; weekly, interim until CI
 ```
 
 ## Repos this agent operates on
@@ -75,10 +77,18 @@ personas — not part of either inheritance chain.
 desired state the `owner` Agent CR reconciles toward, with an append-only status log. Active
 tasks are pinned in the owning CR's `config.instructions`; spec changes land here as PRs.
 
+The agent set in the `dev-images-agent` namespace uses **persona-qualified CR names**
+(`dev-images-<persona>-<n>-<model-slug>`): one `image-developer` agent and two
+`image-maintainer` agents whose duties differ by task ownership (daily candidate channel vs.
+weekly release), per `common-agent`'s image-maintainer channel guidance. The legacy
+generalist `dev-images-1-qwen-local-1` (both personas pinned) remains until decommissioned.
+
 | Task | Owner | Status |
 |------|-------|--------|
-| `tasks/devbox.md` | `dev-images-2-qwen-local-1` | active |
-| `tasks/devbox-claude.md` | `dev-images-2-qwen-local-1` | active (depends on devbox) |
+| `tasks/devbox.md` | `dev-images-image-developer-1-qwen-local-1` | active |
+| `tasks/devbox-claude.md` | `dev-images-image-developer-1-qwen-local-1` | active (depends on devbox) |
+| `tasks/image-candidate-channel.md` | `dev-images-image-maintainer-1-qwen-local-1` | active (daily; interim until CI) |
+| `tasks/image-weekly-release.md` | `dev-images-image-maintainer-2-qwen-local-1` | active (weekly; interim until CI) |
 
 ## Out of scope
 
