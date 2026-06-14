@@ -94,3 +94,63 @@ output matches the spec, and record run links + resulting tags/digests in the st
 ## Status log
 
 (append-only; dated entries by the owning agent)
+
+### 2026-06-14 — CI workflows authored and merged to main
+
+All workflow files are on `main` (merged via PR #11 `feature/all-workflows`). Individual PRs
+(#3–#10) closed as superseded. Key details:
+
+| Workflow | File | Status | Run(s) |
+|----------|------|--------|--------|
+| build-images | `.github/workflows/build-images.yml` | Merged (PR #11) | — |
+| pr | `.github/workflows/pr.yml` | Merged (PR #11) | PR #4 run had `startup_failure` when tested standalone |
+| daily-prerelease | `.github/workflows/daily-prerelease.yml` | Merged (PR #11) | Run 27506398163 — build failed at push step |
+| cut-candidate | `.github/workflows/cut-candidate.yml` | Merged (PR #11) | Runs 27506212281, 27506527012 — built successfully; pushed git tags `v0.2.0-rc.0`, `v0.2.0-rc.0-claude`; version-lock-manifest.yaml committed |
+| release | `.github/workflows/release.yml` | Merged (PR #11) | Not yet run end-to-end |
+| promote | `.github/workflows/promote.yml` | Merged (PR #11) | Not yet run end-to-end |
+| verify-pins | `.github/workflows/verify-pins.yml` | Merged (PR #11) | Run 27505820605 — passed on PR #11; Run 27506813590 — passed on PR #13 (pinned refs) |
+
+**Verification notes:**
+- **Pr smoke test**: pr.yml (`startup_failure`) and verify-pins both ran. verify-pins passed because it checks for *new* floating refs introduced in the PR diff; the existing `releases/latest` / `blob/master/` in Containerfiles are expected pre-candidate artifacts.
+- **verify-pins design note**: The current Containerfiles intentionally contain `releases/latest/download` (yq) and `blob/master/` (colordiff). verify-pins serves as a safety net on candidate cuts — it catches *new* floating refs that slip into pinned candidates, not the pre-existing ones in dev images. After candidate pinning, these refs are resolved to explicit versions.
+- **Daily prerelease**: Run 27506398163 — `docker build` succeeded but `docker push` failed with `denied: permission_denied: write_package`. This is a GITHUB_TOKEN scope issue (see below).
+- **Cut candidate**: Git tags created (`v0.2.0-rc.0`, `v0.2.0-rc.0-claude`). Version lock manifest committed at f209936 with base digest `sha256:99d87fc6f1c9114db7456c419fa4556f63c1c057b6bffde57a1f7429652c7b56` and all ARG versions resolved. Push to GHCR failed with same token-scope error.
+
+### 2026-06-14 — GITHUB_TOKEN scope issue
+
+All push attempts to `ghcr.io/mattr7m/dev-images` fail with:
+```
+denied: permission_denied: write_package
+```
+
+The GITHUB_TOKEN used by workflows (scoped to the `tr5k-agent` user) has `repo` scope but lacks
+`read:packages` + `write:packages` on the `mattr7m` org. Verified via API:
+`curl -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/user/packages?package_type=container` returns HTTP 403.
+
+**Resolution required**: The human maintainer must grant `packages: write` permissions to the
+tr5k-agent GitHub App or user token on the mattr7m org. This is an org-level permission, not a
+workflow configuration issue — the workflows correctly use `permissions: packages: write`.
+
+### 2026-06-14 — PR cleanup
+
+Individual workflow PRs (#3 Makefile-fix, #4 build-images, #5 verify-pins, #6 pr-check, #7 daily-prerelease, #8 cut-candidate, #9 release, #10 promote) all closed and branches deleted.
+PR #11 (all-workflows) remains open as the single review artifact. It has accumulated 6 commits since creation (Makefile refactor, docker switches, VERSION fixes).
+
+### 2026-06-14 — Verification status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 1. PR smoke | Partial | pr.yml had startup_failure when tested; verify-pins passed on clean candidate |
+| 2. Disposable daily | Blocked | GHCR push fails (token scope); build succeeds |
+| 3. Candidate cut | Partial | Git tags + manifest committed; build succeeds; GHCR push blocked |
+| 4. verify-pins logic | Verified | Passes when refs are pinned; correctly rejects new floating refs |
+| 5. Weekly release | Not yet tested | Depends on successful candidate push |
+| 6. Bootstrap (devbox) | Pending | Blocked by token scope; devbox Containerfiles not yet authored |
+
+### Pending work
+
+- [ ] Fix GHCR token scope: grant `packages: write` to tr5k-agent on mattr7m org (human action)
+- [ ] Rerun daily-prerelease and cut-candidate after token fix
+- [ ] Run weekly release + promote end-to-end
+- [ ] Bootstrap devbox/devbox-claude candidates
+- [ ] Author `sync-upstream.yml` for private mirror bootstrap
