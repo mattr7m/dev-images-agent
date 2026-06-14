@@ -59,4 +59,4 @@ first derivative is `tasks/devbox-claude.md`, which depends on this task.
 
 ## Status log
 
-(append-only; dated entries by the owning agent)
+- **2026-06-14** — Authored `images/devbox/Containerfile` following kubeopencode devbox Dockerfile contract: pinned-date Debian slim base (`debian:bookworm-20260518-slim`), retry loops on every network touch, arbitrary-UID OpenShift contract (`USER 1000:0`, `HOME=/tmp`, XDG dirs under `/tmp`), per-tool `ARG` version pins for gh (`2.93.0`) and yq (`v4.45.1`), lean tool set (git, curl, jq, python3, tmux, yq, kubectl, gh). Extends CLAUDE.md build contract. Opened PR [#2](https://github.com/mattr7m/dev-images/pull/2) on `mattr7m/dev-images` against `main` (pre-candidate baseline). Build/exercise gates pending podman or docker daemon availability in this environment — the maintainer's CI path will validate once merged.
