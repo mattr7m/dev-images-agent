@@ -30,10 +30,11 @@ dev-images-agent/
 │   ├── image-developer-dev-images.md     # inherits image-developer; tags [image-developer]
 │   └── image-maintainer-dev-images.md    # inherits image-maintainer; tags [image-maintainer]
 └── tasks/                                # work specs per common-agent's task-model block
-    ├── devbox.md                         # owner: image-developer-1
+    ├── devbox.md                         # owner: image-developer-1; gated on ci-channel
     ├── devbox-claude.md                  # owner: image-developer-1; depends on devbox
-    ├── image-candidate-channel.md        # owner: image-maintainer-1; daily, interim until CI
-    └── image-weekly-release.md           # owner: image-maintainer-2; weekly, interim until CI
+    ├── ci-channel.md                     # owner: image-maintainer-1; build out + prove the CI channel
+    ├── image-candidate-channel.md        # owner: image-maintainer-1; curate the CI daily/candidate channel
+    └── image-weekly-release.md           # owner: image-maintainer-2; oversee the automatic weekly release
 ```
 
 ## Repos this agent operates on
@@ -85,10 +86,11 @@ generalist `dev-images-1-qwen-local-1` (both personas pinned) remains until deco
 
 | Task | Owner | Status |
 |------|-------|--------|
-| `tasks/devbox.md` | `dev-images-image-developer-1-qwen-local-1` | active |
-| `tasks/devbox-claude.md` | `dev-images-image-developer-1-qwen-local-1` | active (depends on devbox) |
-| `tasks/image-candidate-channel.md` | `dev-images-image-maintainer-1-qwen-local-1` | active (daily; interim until CI) |
-| `tasks/image-weekly-release.md` | `dev-images-image-maintainer-2-qwen-local-1` | active (weekly; interim until CI) |
+| `tasks/devbox.md` | `dev-images-image-developer-1-qwen-local-1` | active (build/publish gated on ci-channel) |
+| `tasks/devbox-claude.md` | `dev-images-image-developer-1-qwen-local-1` | active (depends on devbox; gated on ci-channel) |
+| `tasks/ci-channel.md` | `dev-images-image-maintainer-1-qwen-local-1` | active (build out + prove the CI channel) |
+| `tasks/image-candidate-channel.md` | `dev-images-image-maintainer-1-qwen-local-1` | active (curate the CI daily/candidate channel) |
+| `tasks/image-weekly-release.md` | `dev-images-image-maintainer-2-qwen-local-1` | active (oversee the automatic weekly release) |
 
 ## Out of scope
 
