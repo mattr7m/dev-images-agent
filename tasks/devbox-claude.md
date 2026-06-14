@@ -24,6 +24,13 @@ The two execution-trigger Task CRs in the agent bundle are gated on this: the `d
 runs first; the `devbox-claude` pass checks this gate and no-ops with a report if devbox isn't
 in place.
 
+**Status (2026-06-14):** the devbox base is now merged to `main` (dev-images PR #2) and GHCR
+package writes are enabled — the gate is **satisfied**, so this pass should proceed to author the
+derivative and open the PR (the earlier pass correctly stopped here while the base was missing).
+Build/publish then flows through the CI channel (`tasks/ci-channel.md`); the resulting
+`devbox-claude` candidate digest is what unblocks the `agent-maintainer-1-claude-code-1` bundle
+(PR5).
+
 A devbox derivative that runs **Claude Code instead of opencode** inside a kubeopencode Agent
 pod. The kubeopencode controller's server-pod command is hardcoded to exec
 `/tools/opencode serve --port <N> --hostname 0.0.0.0`, and its `agentImage` init container
