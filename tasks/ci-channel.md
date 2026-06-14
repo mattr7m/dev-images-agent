@@ -49,6 +49,30 @@ channel runs green unattended. Per the parent trigger model and Option B tags
 - `dev-images-private` bootstrap (one-time seed) + `sync-upstream.yml` (6h rebase +
   `--force-with-lease`), modelled on `bootc-images-private`.
 
+## Carry-over from the r1 pass (do these in r2)
+
+r1 authored and merged the workflow set (dev-images PR #11) and proved `cut-candidate` +
+`verify-pins` on the **udi-tools** images, but the channel is not yet working end-to-end. GHCR
+package writes are **now enabled** (the r1 `write_package: denied` blocker is resolved). Fix:
+
+- **Wire devbox + devbox-claude into the channel.** The `Makefile` only has `udi-tools` /
+  `udi-tools-claude` targets — add `build-devbox` / `build-devbox-claude` (+ push targets) and
+  include them in `build-all` and the `cut-candidate` image set. (devbox base is on `main`;
+  devbox-claude lands via the developer's `tasks/devbox-claude.md`.)
+- **Release notes:** `release.yml` runs `--generate-notes` but is **missing the "Image version
+  changes" section** diffed from the committed version manifest — add it, and ensure the manifest
+  is committed on `main`.
+- **Promote by digest:** the promote step re-tags by *tag* and only to `:latest` — promote the
+  candidate **@sha256 digest** to both `vX.Y.Z` and `:latest`.
+- **build-images:** drop the `docker build … || true` mask so a failed build fails the job.
+- **verify-pins:** `cut-candidate` must resolve the pre-existing floating refs (`yq
+  releases/latest`, `colordiff master`) to pins, and `verify-pins` must gate on them — not only on
+  newly-introduced refs.
+- **dev-images-private:** bootstrap the mirror + land `sync-upstream.yml` (still just a README).
+- **devfile.yaml:** migrate `udi-tools:v0.1.0-p3-claude` to the Option B tag.
+- **Run `release` + `promote` end-to-end** (r1 ran neither), then the **bootstrap**: publish the
+  first devbox + devbox-claude candidates and record the **devbox-claude digest** (unblocks PR5).
+
 ## End-to-end verification — part of the desired state, not optional
 
 Authoring the YAML is **not** completion. Actually **run and prove each phase**, confirm the
@@ -76,8 +100,12 @@ output matches the spec, and record run links + resulting tags/digests in the st
   `image-maintainer-dev-images.md`); migrate `devfile.yaml`'s `v0.1.0-p3-claude` reference.
 - **Auth:** CI pushes with `GITHUB_TOKEN` + `permissions: packages: write` — never a registry
   PAT. The `org.opencontainers.image.source` LABEL in each Containerfile links the package so the
-  token can write to it. (Out of band, a human ensures the agent's `-github` PAT has `workflow`
-  + `actions:write` so it can author/dispatch workflows; CI itself needs no extra secret.)
+  token can write to it. **Package-permission prerequisite:** an *existing* ghcr package
+  (`udi-tools`, `udi-tools-claude`) must grant the `dev-images` repo Actions **Write** access
+  (package → Manage Actions access); *new* packages (`devbox`, `devbox-claude`) auto-link on the
+  first push from the repo's `GITHUB_TOKEN`, provided the org allows Actions to create packages.
+  (Out of band, a human ensures the agent's `-github` PAT has `workflow` + `actions:write` so it
+  can author/dispatch workflows; CI itself needs no extra secret.)
 - This task **authors CI and the Makefile/VERSION/manifest**; it does **not** edit Containerfiles
   (developer's PRs) except to add a missing source LABEL.
 - Keep build output out of context (parent rule): CI carries the heavy builds; in-pod inspection
