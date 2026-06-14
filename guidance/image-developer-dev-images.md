@@ -68,15 +68,24 @@ workspaces is a new derivative, not a base edit.
 
 ## Local build/test loop in the agent pod
 
-Concrete commands per Containerfile (run from the repo root):
+Concrete commands per Containerfile (run from the repo root). Redirect the verbose build
+output to a log file and read back only the tail/errors — per the inherited *Keep build output
+out of context* rule (`image-maintainer`), a full `podman build` log will overrun a
+small-context model and kill the pass mid-build:
 
 ```bash
-# Base
-podman build -t udi-tools -f images/udi-tools/Containerfile .
+# Base — redirect, then inspect narrowly
+podman build -t udi-tools -f images/udi-tools/Containerfile . > build-udi-tools.log 2>&1 \
+  || { tail -n 40 build-udi-tools.log; grep -niE 'error|fail|cannot' build-udi-tools.log | tail; }
 
 # Derivative (requires udi-tools to exist locally)
-podman build -t udi-tools-claude -f images/udi-tools-claude/Containerfile .
+podman build -t udi-tools-claude -f images/udi-tools-claude/Containerfile . \
+  > build-udi-tools-claude.log 2>&1 || tail -n 40 build-udi-tools-claude.log
 ```
+
+Keep the `build-*.log` files in the workspace as build evidence; reference them in the status
+log / PR rather than pasting full logs. The same redirect applies to the `devbox` /
+`devbox-claude` builds.
 
 Exercise behavior before considering the build "done":
 
