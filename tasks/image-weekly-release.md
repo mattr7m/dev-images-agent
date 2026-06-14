@@ -5,57 +5,45 @@ owner: dev-images-image-maintainer-2-qwen-local-1
 status: active
 ---
 
-# Task: devbox-set weekly release (interim until CI)
+# Task: oversee the automatic weekly release
 
-Run the **weekly release pass** for the devbox image set per `image-maintainer`'s "Weekly
-release and the promotion rule" — interim agent-executed channel until a CI release
-workflow exists.
+The weekly release is **fully automatic CI** (`release.yml` creates the GitHub Release on a
+schedule; `promote.yml` re-tags the candidate by digest on `release: published`) per
+`image-maintainer`'s "Weekly release and the promotion rule". This task is the maintainer's
+**oversight/curation** duty — confirm each release is correct and intervene on failure; it does
+**not** publish images by hand.
 
-Depends on: `tasks/image-candidate-channel.md` (the candidate stream this pass promotes;
-until at least one candidate exists, a pass logs "no candidate yet" and ends).
+Depends on: `tasks/ci-channel.md` (authors `release.yml`/`promote.yml`) and
+`tasks/image-candidate-channel.md` (the candidate stream the release promotes).
 
 ## Desired state
 
-After each weekly pass, for every image in the devbox set with a published candidate:
+- Each weekly run produces a clean `vX.Y.Z` **GitHub Release** with **generated notes plus the
+  "Image version changes" section** (diffed from the candidate's version manifest), and
+  `promote.yml` re-tags the chosen candidate **by digest** to `vX.Y.Z` + `:latest` (no rebuild).
+- The **promotion selection** was correct: the latest `vX.Y.Z-rc.N` by default, or a developer
+  **feature-release tag** (`<candidate>-<short-feature>`) when one exists and is newer.
+- The **skip-if-already-released** guard behaves on a quiet week (no empty release).
+- The maintainer intervenes on a failed/skipped/mis-selected release (diagnose from `gh run`,
+  fix, re-`workflow_dispatch`) and records notable releases + interventions in this file's status
+  log via PR.
+- **Ad-hoc release** (bootstrap/hotfix) = a manual `workflow_dispatch` of `release.yml`
+  (human-initiated, gated tier); same promotion rule.
 
-- The promotion source is selected per the rule:
-  1. **Feature-release tag override**: if a git tag matching `candidate-YYYYMMDD-<feature>`
-     exists on `mattr7m/dev-images` and is newer than the last release, build/promote from
-     that tag.
-  2. **Default**: promote the latest green `:candidate-YYYYMMDD` (digest as recorded in
-     `tasks/image-candidate-channel.md`'s status log — promote the digest, do not rebuild).
-- The chosen image is published to `ghcr.io/mattr7m/<image>` as:
-  - floating release tag `:stable` (moved forward), and
-  - immutable tag `:release-YYYYMMDD`.
-- The pass's status-log entry records: provenance (which candidate tag or feature tag, and
-  why), tags pushed, digests — appended to this file via the normal PR flow.
-- **Ad-hoc release** (bootstrap/hotfix, outside the cadence): a human fires an off-schedule
-  pass via the recurring trigger's manual-trigger mechanism; same promotion rule applies.
-  The "release immediately on developer PR merge" CI action remains a documented future
-  enhancement — do not build it from this task.
+## Acceptance criteria
 
-Release tag scheme harmonization (vs. udi-tools `vX.Y.Z-pN[-variant]`) is the pending
-decision in `guidance/overview.md` / `repo-rules` §12; the dated scheme above is the
-explicit interim.
-
-## Acceptance criteria (per pass)
-
-- [ ] `podman pull ghcr.io/mattr7m/<image>:stable` resolves to the digest recorded in the
-      status log.
-- [ ] Provenance entry names the promoted candidate/feature tag and its digest.
-- [ ] Status-log entry merged via PR.
+- [ ] Latest weekly `vX.Y.Z` Release exists with generated notes + the version-changes section.
+- [ ] `ghcr.io/mattr7m/<image>:latest` resolves to the promoted candidate's digest (by-digest, no
+      rebuild).
+- [ ] Release oversight for the period logged via PR.
 
 ## Constraints / inputs
 
 - Guidance chain: `image-maintainer-dev-images` → `image-maintainer` → `repo-rules`, plus
-  `common-agent/guidance/task-model.md`.
-- Registry write: `podman login ghcr.io -u mattr7m --password-stdin <<< "$GHCR_TOKEN"`
-  (this agent's own `-ghcr` credential Secret; per-CR Secrets, nothing shared with
-  cohabitants).
-- Promote by digest where possible — a release must not silently differ from the candidate
-  it claims to promote.
-- `done` when a CI release workflow carries this pass (suspend the recurring trigger in the
-  same change).
+  `common-agent/guidance/task-model.md`. Tag scheme is **Option B** (clean `vX.Y.Z` releases).
+- **No in-pod publish, no registry PAT.** Promotion is CI by digest with `GITHUB_TOKEN`; the
+  maintainer oversees and dispatches, it does not push.
+- Standing duty — stays `active` while the release is agent-overseen.
 
 ## Status log
 

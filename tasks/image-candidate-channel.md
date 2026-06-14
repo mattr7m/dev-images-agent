@@ -5,58 +5,44 @@ owner: dev-images-image-maintainer-1-qwen-local-1
 status: active
 ---
 
-# Task: devbox-set candidate channel (daily, interim until CI)
+# Task: curate the daily candidate channel
 
-Run the **daily candidate pass** for the devbox image set per `image-maintainer`'s
-"Interim: agent-executed channel (before CI)" — `mattr7m/dev-images` has no CI yet, so this
-task carries the channel until `daily-prerelease` / `cut-candidate` workflows exist.
+Curate the **daily pre-release + pinned candidate** channel for the devbox image set, which runs
+in **GitHub Actions** (`daily-prerelease.yml`, `cut-candidate.yml`) per `image-maintainer`'s
+trigger model — not as an in-pod build. The maintainer's standing job is to keep that channel
+green and current, not to build images by hand.
 
-Depends on: `tasks/devbox.md` and `tasks/devbox-claude.md` (the Containerfiles this pass
-builds; until they land in `main`, a pass logs "sources not present" and ends).
+Depends on: `tasks/ci-channel.md` (which authors and proves the workflows). Until they exist this
+task is dormant; once the channel is live this is the ongoing curation duty.
 
 ## Desired state
 
-After each pass, for every image in the devbox set present in `mattr7m/dev-images` `main`
-(today: `devbox`, then `devbox-claude` — build in that dependency order):
+- The `daily-prerelease` and `cut-candidate` workflows run green on schedule; the `:candidate`
+  floating tag and the immutable `vX.Y.Z-rc.N` tags advance **only** on green.
+- The maintainer responds to what the daily surfaces — a floating ref that drifted or broke
+  upstream (fix the pin/source via a PR to `mattr7m/dev-images`), a failed candidate cut
+  (diagnose from `gh run` output, fix, re-run `workflow_dispatch`), a `verify-pins` regression.
+- Each candidate carries its **committed version lock manifest** (the source for release notes)
+  and a clean `vX.Y.Z-rc.N` tag (Option B); no floating ref ships in a candidate.
+- Notable interventions (a broken upstream, a pin bump, a skipped cut, a re-run) are recorded in
+  this file's status log via the normal PR flow.
 
-- A fresh build from `main` HEAD passes its smoke tests (reuse the acceptance-criteria
-  commands from the corresponding developer task — UID/workspace checks for devbox; init /
-  plain / boot paths for devbox-claude).
-- The result is published to `ghcr.io/mattr7m/<image>` as:
-  - floating channel tag `:candidate` (moved forward), and
-  - immutable dated tag `:candidate-YYYYMMDD` (provenance; feature-release tags append to
-    this form per `image-developer`).
-- The pass's status-log entry records: source commit SHA, tags pushed, and each image's
-  digest — appended to this file via the normal PR flow.
-- On build/test failure: **stop and report** (status-log entry + issue/PR per
-  `image-maintainer`); do not push a broken candidate; `:candidate` keeps pointing at the
-  last good pass.
+## Acceptance criteria
 
-Full `vX.Y.Z-rc.N` candidate semantics (lockfile, `verify-pins`) arrive with the CI
-migration; the dated-tag scheme above is the explicit interim and feeds the repo's pending
-tag-scheme decision (`guidance/overview.md`).
-
-## Acceptance criteria (per pass)
-
-- [ ] `podman pull ghcr.io/mattr7m/<image>:candidate` resolves to the digest recorded in the
-      status log.
-- [ ] Dated tag exists for the pass; digests in the log match the registry.
-- [ ] Status-log entry merged via PR.
+- [ ] The candidate channel is green: latest `vX.Y.Z-rc.N` built clean and `verify-pins` passed.
+- [ ] `ghcr.io/mattr7m/<image>:candidate` resolves to the latest candidate digest.
+- [ ] Interventions for the period are logged via PR.
 
 ## Constraints / inputs
 
 - Guidance chain: `image-maintainer-dev-images` → `image-maintainer` → `repo-rules`, plus
-  `common-agent/guidance/task-model.md`.
-- Registry write: `podman login ghcr.io -u mattr7m --password-stdin <<< "$GHCR_TOKEN"`
-  (`GHCR_TOKEN` injected from this agent's `-ghcr` credential Secret). Registry credentials
-  are maintainer-only — never share with developer agents.
-- This task **builds and publishes**; it does not edit Containerfiles. Config changes are
-  the developer's PRs.
-- The first published `devbox-claude` candidate digest unblocks the
-  `agent-maintainer-1-claude-code-1` bundle (its CR pins that digest) — flag it prominently
-  in the status log.
-- `done` when the corresponding CI workflows carry the daily pass (suspend the recurring
-  trigger in the same change).
+  `common-agent/guidance/task-model.md`. Tag scheme is **Option B**.
+- **No in-pod build, no registry PAT.** CI builds and pushes with `GITHUB_TOKEN`; the maintainer
+  curates via config/pin PRs and `workflow_dispatch`, reading `gh run` output (not full build
+  logs — keep build output out of context).
+- This task **curates**; it does not edit Containerfiles (developer PRs) or author the workflows
+  (that's `ci-channel.md`).
+- Standing duty — stays `active` while the channel is agent-curated.
 
 ## Status log
 

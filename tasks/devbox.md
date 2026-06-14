@@ -42,11 +42,17 @@ first derivative is `tasks/devbox-claude.md`, which depends on this task.
 
 ## Acceptance criteria
 
-- [ ] `podman build -t devbox -f images/devbox/Containerfile .` succeeds from repo root.
-- [ ] `podman run --rm devbox id -u` → `1000`; `podman run --rm devbox sh -c 'touch /workspace/x'` succeeds.
-- [ ] `podman run --rm devbox sh -c 'git --version && python3 --version && tmux -V'` succeeds.
+The agent authors config and opens the PR; **PR CI build/smoke is the gate** (the agent pod can't
+build — see `image-developer`). Build/publish to ghcr is **gated on `tasks/ci-channel.md`**: the
+CI channel must exist, and its bootstrap produces the first image.
+
+- [ ] `images/devbox/Containerfile` authored from repo root, carrying
+      `LABEL org.opencontainers.image.source="https://github.com/mattr7m/dev-images"`.
 - [ ] No unpinned network fetches (`grep -n latest images/devbox/Containerfile` reviewed).
-- [ ] PR open on `mattr7m/dev-images`, description references this task.
+- [ ] PR open on `mattr7m/dev-images`, description references this task; **PR CI green** — CI
+      builds and verifies `id -u`→`1000`, `/workspace` writable, and `git`/`python3`/`tmux` present.
+- [ ] First candidate built + published by the CI channel; digest recorded in `ci-channel.md`'s
+      status log.
 
 ## Constraints / inputs
 

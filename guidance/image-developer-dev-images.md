@@ -68,6 +68,11 @@ workspaces is a new derivative, not a base edit.
 
 ## Local build/test loop in the agent pod
 
+**The authoritative build/smoke is PR CI, not the pod** (see `image-developer`): the dev-images
+agent pods generally have no container-build tooling, so a local build may be impossible — author
+the config, open the PR, and let the `pull_request` check build/smoke it. The commands below are a
+fast inner check *when the pod can build*; "couldn't build locally" is not a blocker.
+
 Concrete commands per Containerfile (run from the repo root). Redirect the verbose build
 output to a log file and read back only the tail/errors — per the inherited *Keep build output
 out of context* rule (`image-maintainer`), a full `podman build` log will overrun a

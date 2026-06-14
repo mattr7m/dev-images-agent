@@ -18,11 +18,15 @@ toward*. Read `guidance/overview.md` for the repo's shape first.
 history. `dev-images-private` is an empty repo. The maintainer's job today is **establish, then
 curate** — not just curate. Order matters:
 
-1. **Decide the tag scheme** (see "Candidate channel — decision required" below).
-2. **Land a Makefile** (build/lint/push contract).
-3. **Seed the private mirror** (one-time bootstrap).
-4. **Land the four CI workflows** (one PR each).
-5. From there: the parent block's daily/candidate discipline applies as written.
+1. **Tag scheme: Option B** (decided — see "Candidate channel" below).
+2. **Land a Makefile + `VERSION`** (build/lint/push contract + semver source of truth).
+3. **Seed the private mirror** (one-time bootstrap) + `sync-upstream.yml`.
+4. **Land the CI workflow set** (one PR each — see "CI scaffolding targets" below).
+5. From there: the parent block's trigger model runs the channel; the maintainer curates.
+
+The build-out and its end-to-end proof are tracked as `tasks/ci-channel.md`; the daily-candidate
+and weekly-release standing duties as `tasks/image-candidate-channel.md` /
+`tasks/image-weekly-release.md`.
 
 Until the daily/candidate workflows exist, image-developers can't branch from a candidate (they
 work pre-candidate; see the developer block). Establishing the channel unblocks them.
@@ -43,45 +47,77 @@ Add a `Makefile` modeled on `bootc-images/Makefile`:
 This formalizes the build contract `image-developer` agents follow — until it lands, the
 developer block has to document raw `podman build` commands.
 
-## Candidate channel — decision required
+## Candidate channel — Option B (decided)
 
-`devfile.yaml` already references `ghcr.io/mattr7m/udi-tools:v0.1.0-p3-claude`, applied manually.
-Choose one and document the choice in this block before scaffolding `cut-candidate.yml`:
+Tag scheme is **Option B**: candidates `vX.Y.Z-rc.N`, releases clean `vX.Y.Z`, **one ghcr repo
+per derivative** (`ghcr.io/mattr7m/{udi-tools,udi-tools-claude,devbox,devbox-claude}`), tagged
+independently. Clean promotion semantics; matches the parent block. Migration cost: `devfile.yaml`
+references `ghcr.io/mattr7m/udi-tools:v0.1.0-p3-claude` (applied manually) — update it to the
+Option B tag as part of the cut-candidate PR, and coordinate with whoever maintains the devfile /
+downstream consumers (call it out in the PR description). The legacy `vX.Y.Z-pN[-variant]` scheme
+is retired.
 
-**Option A — preserve `vX.Y.Z-pN[-variant]`.** Treat `-pN` as the candidate marker; the `[-variant]`
-suffix is the derivative selector (e.g. `-claude`). Releases drop the `-pN` and become
-`vX.Y.Z[-variant]`. Pro: continuity with what's already published / referenced in `devfile.yaml`.
-Con: variant-in-tag means one ghcr repo per base with N tags per release; parent block's
-`rc.N` semantics don't translate cleanly.
-
-**Option B — migrate to parent's `vX.Y.Z-rc.N`.** Each derivative becomes a separate ghcr repo
-(`ghcr.io/mattr7m/udi-tools`, `ghcr.io/mattr7m/udi-tools-claude`), tagged independently with
-clean `vX.Y.Z` releases and `vX.Y.Z-rc.N` candidates. Pro: matches the parent block; cleaner
-semantics for promotion. Con: requires updating `devfile.yaml` and any downstream consumer; the
-existing `v0.1.0-p3-claude` doesn't have a one-shot rename target.
-
-Recommendation: **B**, but the migration cost is real — capture it in the PR description and
-coordinate with whoever maintains the devfile / consumer references.
+`VERSION` is the semver source of truth: `cut-candidate` computes the next `-rc.N` off it, and the
+release strips to clean `vX.Y.Z`. A `cut-candidate` run also **commits a version lock manifest**
+(resolved base digest + ARG/RPM/pip versions) — the source for the weekly release's "Image version
+changes" notes section.
 
 ## CI scaffolding targets (capture-as-scaffolding; one PR each)
 
-Realizes the parent's checklist against this repo. All four are greenfield — there is no existing
-workflow to extend. Model on `bootc-images-private/.github/workflows/{build-images,sync-upstream}.yml`
-for the actual GHCR-login / repo-event / scheduler patterns.
+Realizes the parent's trigger model against this repo (all greenfield). Model the GHCR-login /
+event / scheduler patterns on `mattr7m/bootc-images-private` `build-images.yml` +
+`sync-upstream.yml` and the `mattr7m/bootc-images` `Makefile` — they already run this shape. Two
+deltas from bootc: push with the **built-in `GITHUB_TOKEN`** (bootc does; no PAT), and dev-images
+adds the daily/candidate/promote phases bootc lacks (bootc rebuilds at release; dev-images
+**promotes by digest**).
 
-- [ ] **`daily-prerelease.yml`** — scheduled. Bump floating refs in `udi-tools/Containerfile`
-      (today: the `yq` `releases/latest` URL, the VSCode `?build=stable` URL, the `colordiff`
-      `master` URL, and dnf/pip installs that lack pins). `make build-all` + `make lint`. Push
-      rolling tag.
-- [ ] **`cut-candidate.yml`** — on green daily (or manual). Resolve the base
-      `quay.io/devfile/universal-developer-image:ubi9-e420701` to a digest pin; assert all
-      `ARG <NAME>_VERSION` lines are explicit; record a manifest of resolved RPM NEVRAs + pip
-      versions for reproducibility; tag + publish candidate per the chosen scheme.
-- [ ] **`build-images.yml`** — release-event-triggered build + push to GHCR. Tag both the
-      release tag and `:latest`. Direct port of `bootc-images-private/.github/workflows/build-images.yml`.
-- [ ] **`verify-pins.yml`** — fail if any candidate Containerfile still contains
-      `releases/latest`, a bare `:ubi9-<short>` rolling tag, a `master`-branch raw URL, or a
-      `curl | bash` install. Run as a required check on candidate-cut PRs.
+- [ ] **`build-images.yml`** — reusable (`on: workflow_call`) build+push engine; inputs `image`,
+      `tags`, `push`, `pin`. `permissions: packages: write`; `redhat-actions/podman-login` with
+      `${{ secrets.GITHUB_TOKEN }}`; builds from repo root (Containerfiles copy from `scripts/`),
+      base before derivative. The only copy of the build steps.
+- [ ] **`pr.yml`** — `on: pull_request`: call build-images `push:false` + `make lint` (hadolint)
+      + `verify-pins` + one real CLI invocation. Required check.
+- [ ] **`daily-prerelease.yml`** — `schedule` + `workflow_dispatch`: bump floating refs in
+      `udi-tools/Containerfile` (the `yq` `releases/latest` URL, the VSCode `?build=stable` URL,
+      the `colordiff` `master` URL, unpinned dnf/pip), `make build-all` + `make lint`, push rolling
+      `:nightly`.
+- [ ] **`cut-candidate.yml`** — `schedule` + `workflow_dispatch`: resolve the base
+      (`quay.io/devfile/universal-developer-image:ubi9-e420701` → digest) and assert every
+      `ARG <NAME>_VERSION` is explicit; **commit a version lock manifest** (resolved base digest +
+      RPM NEVRAs + pip versions); push `:candidate` + `vX.Y.Z-rc.N`; create the git tag.
+- [ ] **`release.yml`** — `schedule` + `workflow_dispatch`: pick the candidate (latest `*-rc.*`,
+      or a developer feature-release tag), derive clean `vX.Y.Z` from `VERSION`,
+      `gh release create --generate-notes`, then **prepend an "Image version changes" section**
+      diffed from the version manifest; skip if already released.
+- [ ] **`promote.yml`** — `on: release: [published]`: `skopeo copy` / `crane cp` the chosen
+      candidate **by digest** to `vX.Y.Z` + `:latest`. No rebuild.
+- [ ] **`verify-pins.yml`** — fail if any candidate Containerfile still has `releases/latest`, a
+      bare `:ubi9-<short>` rolling tag, a `master`-branch raw URL, or a `curl | bash` install.
+      Required check on candidate cuts.
+
+Reference skeleton for the reusable engine (port from bootc, swap to `GITHUB_TOKEN`):
+
+```yaml
+# build-images.yml
+on:
+  workflow_call:
+    inputs:
+      image: { type: string }
+      tags:  { type: string }
+      push:  { type: boolean, default: false }
+      pin:   { type: boolean, default: false }
+permissions: { contents: read, packages: write }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: redhat-actions/podman-login@v1
+        with: { registry: ghcr.io, username: ${{ github.actor }}, password: ${{ secrets.GITHUB_TOKEN }} }
+      - run: |   # build from repo root, base before derivative; heavy logs → file, not stdout
+          make build-${{ inputs.image }} REGISTRY=ghcr.io/${{ github.repository_owner }}
+          [ "${{ inputs.push }}" = "true" ] && make push-${{ inputs.image }} REGISTRY=ghcr.io/${{ github.repository_owner }} || true
+```
 
 ## Public ↔ private mirror discipline
 
@@ -115,10 +151,11 @@ they migrate cleanly into the workflow.
 
 Layered on the parent's checklist:
 
-- [ ] Tag-scheme decision documented in this block (Option A or B), with a PR description on
-      `devfile.yaml` if Option B.
-- [ ] Makefile contract lands before the first developer PR that depends on it.
-- [ ] Each of the four workflow PRs reduces a section of this block to "verify it's green"
-      rather than running it by hand.
+- [ ] Tag scheme is **Option B** (recorded above); `devfile.yaml` migrated off `v0.1.0-p3-claude`
+      in the cut-candidate PR.
+- [ ] `Makefile` + `VERSION` land before the first developer PR / candidate cut that depends on them.
+- [ ] Each workflow PR reduces a section of this block to "verify it's green" rather than running
+      it by hand; CI pushes with `GITHUB_TOKEN` (no registry PAT).
 - [ ] Private mirror is bootstrapped exactly once; ongoing sync runs from the workflow.
 - [ ] No floating ref ships in a candidate; `verify-pins.yml` is a required check.
+- [ ] The channel is **proven end-to-end** (per `tasks/ci-channel.md`), not just authored.

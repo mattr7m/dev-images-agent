@@ -65,18 +65,22 @@ as both `spec.agentImage` and `spec.executorImage` on the consuming Agent CR.
 
 ## Acceptance criteria
 
-- [ ] Base-then-derivative build succeeds from repo root.
-- [ ] Init path: `podman run --rm -e TOOLS_DIR=/tmp/tools -v ...: devbox-claude` (with a tmpfs
-      tools dir) exits 0 and leaves an executable `opencode` file in the tools dir whose
-      content is `claude-agent-boot.sh`.
-- [ ] Plain path: `podman run --rm devbox-claude sh -c 'claude --version && tmux -V'` works.
-- [ ] Boot path: running the planted script as
-      `sh -c '/tools/opencode serve --port 4096 --hostname 0.0.0.0'` inside the container
-      yields `curl -s -o /dev/null -w '%{http_code}' localhost:4096/session/status` → `200`
-      and `tmux has-session -t main` → exit 0.
-- [ ] If `/bootstrap/CLAUDE.md` is bind-mounted, it appears at `/workspace/CLAUDE.md` after boot.
-- [ ] PR open on `mattr7m/dev-images`, description references this task and
-      `tasks/devbox.md` as its dependency.
+The agent authors config and opens the PR; **PR CI build/smoke is the gate** (the agent pod can't
+build — see `image-developer`). Build/publish to ghcr is **gated on `tasks/ci-channel.md`** (which
+also enforces the devbox-base **Gate** above). The checks below are what **PR CI runs**:
+
+- [ ] `images/devbox-claude/Containerfile` + scripts authored, carrying
+      `LABEL org.opencontainers.image.source="https://github.com/mattr7m/dev-images"`.
+- [ ] Base-then-derivative build succeeds in CI.
+- [ ] Init path: `podman run --rm -e TOOLS_DIR=/tmp/tools …` exits 0 and leaves an executable
+      `opencode` file whose content is `claude-agent-boot.sh`.
+- [ ] Plain path: `claude --version && tmux -V` works.
+- [ ] Boot path: `/tools/opencode serve --port 4096 --hostname 0.0.0.0` →
+      `localhost:4096/session/status` `200` and `tmux has-session -t main` → 0.
+- [ ] `/bootstrap/CLAUDE.md` bind-mount appears at `/workspace/CLAUDE.md` after boot.
+- [ ] PR open on `mattr7m/dev-images` referencing this task + `tasks/devbox.md`; **PR CI green**.
+- [ ] First `devbox-claude` candidate built + published by the CI channel; digest recorded in
+      `ci-channel.md`'s status log (unblocks PR5).
 
 ## Constraints / inputs
 

@@ -40,8 +40,9 @@ mirrors it for reference.
 - **Registry:** `ghcr.io/mattr7m/<image>`.
 - **Current tag scheme in use:** `vX.Y.Z-pN[-variant]` — `devfile.yaml` references
   `ghcr.io/mattr7m/udi-tools:v0.1.0-p3-claude`. Applied manually today (no CI publishing).
-- **Decision pending:** preserve this scheme vs. migrate to the parent block's `vX.Y.Z-rc.N`
-  candidates + clean `vX.Y.Z` releases. See `image-maintainer-dev-images.md`.
+- **Decided — Option B:** migrate to `vX.Y.Z-rc.N` candidates + clean `vX.Y.Z` releases, one ghcr
+  repo per derivative; `devfile.yaml`'s `v0.1.0-p3-claude` is migrated as part of the cut-candidate
+  PR. See `image-maintainer-dev-images.md`.
 
 ## What floats today (targets for the release pipeline to pin)
 
