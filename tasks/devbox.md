@@ -53,6 +53,9 @@ first derivative is `tasks/devbox-claude.md`, which depends on this task.
 - Guidance chain: `image-developer-dev-images` → `image-developer` → `image-maintainer` →
   `repo-rules`, plus `common-agent/guidance/task-model.md` for this file's conventions.
 - Don't retrofit the devbox contract onto `udi-tools` (explicit guidance rule).
+- Redirect the `podman build` to a log file and read back only the tail/errors (per the
+  *Keep build output out of context* rule) — a full build log will overrun this model and end
+  the pass mid-build.
 
 ## Status log
 

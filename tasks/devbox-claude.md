@@ -82,6 +82,9 @@ as both `spec.agentImage` and `spec.executorImage` on the consuming Agent CR.
 
 - Guidance chain: `image-developer-dev-images` → `image-developer` → `image-maintainer` →
   `repo-rules`, plus `common-agent/guidance/task-model.md`.
+- Redirect the base-then-derivative `podman build`s to log files and read back only the
+  tail/errors (per the *Keep build output out of context* rule) — a full build log will overrun
+  this model and end the pass mid-build.
 - Boundary rule: Claude-specific tooling stays in this derivative — no base edits.
 - The consuming Agent CR shape (ConfigMap mounts, no standby, etc.) is documented in
   `kube-open-code-agent/guidance/agent-templating-claude-code.md`; this task owns only the
