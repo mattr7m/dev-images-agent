@@ -9,6 +9,21 @@ status: active
 
 Depends on: `tasks/devbox.md` (local `FROM devbox` — build the base first, same image cache).
 
+## Gate — devbox must be in place first
+
+A hard precondition, not just build ordering. Before authoring or building anything here,
+verify the base exists and builds:
+
+- `images/devbox/Containerfile` is present on `mattr7m/dev-images` `main` (the `tasks/devbox.md`
+  desired state is met / its PR merged) and
+  `podman build -t devbox -f images/devbox/Containerfile .` succeeds from the repo root.
+- If the base is absent or fails to build, **stop and report** — do not author this derivative
+  against a missing or broken `FROM devbox`. Re-run once devbox lands.
+
+The two execution-trigger Task CRs in the agent bundle are gated on this: the `devbox` pass
+runs first; the `devbox-claude` pass checks this gate and no-ops with a report if devbox isn't
+in place.
+
 A devbox derivative that runs **Claude Code instead of opencode** inside a kubeopencode Agent
 pod. The kubeopencode controller's server-pod command is hardcoded to exec
 `/tools/opencode serve --port <N> --hostname 0.0.0.0`, and its `agentImage` init container
