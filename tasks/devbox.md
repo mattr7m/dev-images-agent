@@ -65,4 +65,10 @@ CI channel must exist, and its bootstrap produces the first image.
 
 ## Status log
 
+- **2026-06-15** — Config merged to `mattr7m/dev-images` main (commit `98886c4`).
+  `images/devbox/Containerfile` present with pinned-date Debian slim base, retry loops,
+  arbitrary-UID contract, and OCI source label. CI workflows support devbox + devbox-claude
+  builds alongside udi-tools images. Acceptance: Containerfile LABEL ✅, no unpinned refs ✅.
+  Build/publish to ghcr is gated on `tasks/ci-channel.md`.
+
 (append-only; dated entries by the owning agent)
