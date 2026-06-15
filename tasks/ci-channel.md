@@ -175,10 +175,65 @@ PR #11 (all-workflows) remains open as the single review artifact. It has accumu
 | 5. Weekly release | Not yet tested | Depends on successful candidate push |
 | 6. Bootstrap (devbox) | Pending | Blocked by token scope; devbox Containerfiles not yet authored |
 
-### Pending work
+### 2026-06-15 — r2 pass: devbox wired in, all PRs merged, cut-candidate proven green
 
-- [ ] Fix GHCR token scope: grant `packages: write` to tr5k-agent on mattr7m org (human action)
-- [ ] Rerun daily-prerelease and cut-candidate after token fix
-- [ ] Run weekly release + promote end-to-end
-- [ ] Bootstrap devbox/devbox-claude candidates
-- [ ] Author `sync-upstream.yml` for private mirror bootstrap
+GHCR write is **enabled** (tr5k-agent `packages: write` granted at org level — resolved). All
+carry-over items from ci-channel.md §"Carry-over from the r1 pass" are now addressed via separate
+PRs merged to main:
+
+| PR | Branch | Description | Status |
+|----|--------|-------------|--------|
+| #14 | feature/devbox-claude-image | `devbox-claude` Containerfile + dispatcher + boot script | Merged |
+| #15 | feature/makefile-devbox-targets | Makefile: `build-devbox`, `build-devbox-claude`, push targets, `IMAGES` updated | Merged |
+| #16 | feature/build-images-failure-mask | build-images.yml: removed `|| true` from `docker build >> build.log 2>&1 || true` — failures now fail the job | Merged |
+| #17 | feature/cut-candidate-devbox | cut-candidate rewritten for all four images (udi-tools, udi-tools-claude, devbox, devbox-claude): extracts ARGs from each Containerfile, commits version-lock-manifest.yaml, builds + pushes candidate tags, creates per-derivative git tags (`vX.Y.Z-rc.N`, `-claude`, `-devbox`, `-devbox-claude`) | Merged |
+| #18 | feature/daily-prerelease-devbox | daily-prerelease.yml: added `daily-build-devbox` and `daily-build-devbox-claude` jobs with dependency order | Merged |
+| #19 | feature/pr-workflow-devbox | pr.yml: added `build-devbox` and `build-devbox-claude` to required PR checks | Merged |
+| #20 | feature/promote-by-digest | promote.yml: replaced `podman-login` with `docker login-action`; promotes all four images by digest pull → tag → push (`vX.Y.Z` + `:latest`) | Merged |
+| #21 | feature/release-version-changes | release.yml: prepends version-lock-manifest.yaml contents under "Image version changes"; promotes all four images; supports manual candidate_tag input or auto-select latest rc | Merged |
+| #22 | feature/devfile-tag-migration | devfile.yaml: migrated `udi-tools:v0.1.0-p3-claude` → `v0.2.0-rc.0` (Option B tag) | Merged |
+
+**Additional fixes merged** (not in r1 carry-over but discovered during r2):
+- **PR #23** (feature/pr-permissions-fix): pr.yml `startup_failure` — changed `permissions: read-all` to explicit `contents: read`, `packages: read`, `actions: read` for reusable workflow resolution.
+- **PR #24** (feature/rc-number-filter): cut-candidate "Compute next rc number" step now filters tags with `grep -E "^v${VERSION}-rc\.[0-9]+$"` to exclude derivative suffixes (`-claude`, `-devbox`, `-devbox-claude`).
+- **PR #25** (feature/cut-candidate-shortnames): cut-candidate now does `docker tag ${IMAGE_ID} udi-tools` and `docker tag ${IMAGE_ID} devbox` after building base images, so derivative Containerfiles (`FROM udi-tools`, `FROM devbox`) succeed in CI.
+
+### 2026-06-15 — Verification status (r2)
+
+| Phase | Status | Run(s) / Notes |
+|-------|--------|----------------|
+| 1. PR smoke | Partial | pr.yml startup_failure resolved (PR #23 merged). **Re-test needed**: open a throwaway PR to confirm required checks pass and gates merge; also test that it fails on a deliberately broken change. |
+| 2. Disposable daily | Investigating | Run `27520319711` — **failure** at `build-devbox-claude` step. Likely runner disk space exhaustion (four images build sequentially). Needs re-run with verbose logging. |
+| 3. Candidate cut | Success | Run `27520316615` — **success**. All four images built, candidate tags pushed to GHCR, git tags created (`v0.2.0-rc.N`, `-claude`, `-devbox`, `-devbox-claude`), version-lock-manifest.yaml committed. |
+| 4. verify-pins | Success (r1) | Passed on clean candidates. Run `27505820605`, `27506813590`. |
+| 5. Weekly release | Not yet tested | Neither release.yml nor promote.yml have been run end-to-end in r2. |
+| 6. Bootstrap (devbox) | Partial | devbox + devbox-claude candidates built and pushed in cut-candidate run #27520316615. **Digests recorded** — unblocks PR5 (agent-maintainer bundle). Need to re-run daily-prerelease to confirm all four images build cleanly on a rolling tag push. |
+
+### dev-images-private sync-upstream.yml
+
+Created `.github/workflows/sync-upstream.yml` in the private mirror repo — rebases `main` onto upstream `main` every 6 hours with `--force-with-lease`. README.md documents mirror purpose and bootstrap instructions.
+
+### Remaining to verify (not yet exercised end-to-end)
+
+- [ ] **PR smoke (full)**: throwaway PR → confirm required checks pass, gates merge, fails on broken change.
+- [ ] **daily-prerelease**: re-run after investigating disk space / build error; confirm `:nightly` push for all four images.
+- [ ] **release + promote end-to-end**: `workflow_dispatch` release.yml on latest candidate → verify GitHub Release with "Image version changes" section → verify promote.yml fires and creates `:latest` tags for all four images by digest (no rebuild).
+- [ ] **verify-pins as required check**: confirm it's wired into pr.yml / cut-candidate as a required gate.
+- [ ] **skip-if-already-released guard**: test that running release.yml twice does not create duplicate GitHub Releases.
+
+### Outstanding external dependencies
+
+- **None** — GHCR token scope resolved, all carry-over items addressed.
+- **Pending human action for full verification**: none required; all CI runs are `workflow_dispatch` available.
+
+### Cleanup from r1 (in-progress)
+
+- Git tags `v0.2.0-rc.0` and `v0.2.0-rc.0-claude` were deleted during cut-candidate reruns to allow clean RC number computation. Remaining derivative tags (`v0.2.0-rc.0-devbox`, `v0.2.0-rc.0-devbox-claude`) may also need cleanup if present from failed runs — verify via `gh api repos/mattr7m/dev-images/git/refs/tags` and delete as needed.
+
+### Pending work (updated)
+
+- [ ] Re-test daily-prerelease run #27520319711 — investigate devbox-claude build failure (likely disk space or login step).
+- [ ] Run release.yml + promote.yml end-to-end (workflow_dispatch on cut-candidate's latest candidate).
+- [ ] Open throwaway PR to confirm pr.yml required checks pass, gates merge, and fails on broken change.
+- [ ] Verify prune / tag cleanup: `v0.2.0-rc.0-devbox`, `v0.2.0-rc.0-devbox-claude` if they exist from earlier failed runs.
+- [ ] Wire verify-pins as a required check in pr.yml (confirm it's already part of the required checks list).
