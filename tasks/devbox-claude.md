@@ -103,4 +103,12 @@ also enforces the devbox-base **Gate** above). The checks below are what **PR CI
 
 ## Status log
 
+- **2026-06-15** — Config authored and merged to `mattr7m/dev-images` main (commit `98886c4`).
+  `images/devbox-claude/Containerfile`, `dispatcher.sh`, and `claude-agent-boot.sh` are in place.
+  CI workflows (`pr.yml`, `daily-prerelease.yml`, `cut-candidate.yml`, `release.yml`) and
+  `Makefile` updated to build devbox + devbox-claude alongside udi-tools images. Acceptance:
+  Containerfile LABEL ✅, no unpinned refs ✅, scripts executable ✅, PR CI jobs present ✅.
+  Build/publish to ghcr gated on `tasks/ci-channel.md` — first candidate digest recording there
+  unblocks PR5.
+
 (append-only; dated entries by the owning agent)
